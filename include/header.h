@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include<sys/stat.h>
+#include<dirent.h>
 
-#include "datatype.h"
+
 #include "ansi_color.h"
 #include "file_processing.h"
 
