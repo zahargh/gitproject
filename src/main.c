@@ -1,35 +1,64 @@
 #include "header.h"
 #include "file_processing.h"
- int main(int argc,char * argv[]){
+int main(int argc,char * argv[]){
     if(argc<2){
         perror("invalid command\n");
         return 1;
     }
-    // if(strcmp(argv[1],"config")==0){
-    //     if(!strcmp(argv[2],"-global")){
-    //         if(!(argv[3],"user.name")){
-    //             creat_config_global(argv[4],NULL);
-    //         }
-    //         else if(!strcmp(argv[3],"user.email")){
-    //             creat_config_global(NULL,argv[4]);
-    //         }
-    //         else if(!strncmp(argv[3],"alias.",6)){
-
-    //         }
-    //     }
-    //     else{
-    //         if(!strcmp(argv[2],"user.name")){
-    //             creat_config(argv[4],NULL);
-    //         }
-    //         else if(!strcmp(argv[2],"user.email")){
-    //             creat_config(NULL,argv[4]);
-    //         }
-    //         else if(!strncmp(argv[2],"alias.",6)){
-
-    //         }
-    //     }
-
+    //  if(is_alias(argv[1])){
+    //     argv=is_alias(argv[1]);
     // }
+    if(!strcmp(argv[1],"config")&&!strcmp(argv[2],"-global")&&!strncmp(argv[3],"alias.",6)){
+        for(int i=0;i<strlen(argv[3])-6;i++){
+            argv[3][i]=argv[3][i+6];
+        }
+        argv[3][strlen(argv[3])-6]='\0';
+        if(!is_valid(argv[4])){
+            printf("the cammand entered ain't valid\n");
+        }
+        else
+            alias_global(argv[3],argv[4]);  
+        return 0;   
+    }
+    if(!strcmp(argv[1],"config")&&!strncmp(argv[2],"alias.",6)){
+        for(int i=0;i<strlen(argv[2])-6;i++){
+            argv[2][i]=argv[2][i+6];
+        }
+        argv[2][strlen(argv[2])-6]='\0';
+        if(!is_valid(argv[3])){
+            printf("the cammand entered ain't valid\n");
+        }
+        else 
+            alias(argv[2],argv[3]);
+        return 0;     
+    } 
+   
+//////////////////////////////
+    if(strcmp(argv[1],"config")==0){
+        if(!strcmp(argv[2],"-global")){
+            if(!strcmp(argv[3],"user.name")){
+                creat_config_global(argv[4],NULL);
+            }
+            else if(!strcmp(argv[3],"user.email")){
+                creat_config_global(NULL,argv[4]);
+            }
+            // else if(!strncmp(argv[3],"alias.",6)){
+
+            // }
+        }
+        else{
+            if(!strcmp(argv[2],"user.name")){
+                creat_config(argv[3],NULL);
+            }
+            else if(!strcmp(argv[2],"user.email")){
+                creat_config(NULL,argv[3]);
+            }
+        //     else if(!strncmp(argv[2],"alias.",6)){
+
+        //     }
+        }
+
+    }
     else if(!strcmp(argv[1],"init")){
         init(argv);
     }
@@ -64,7 +93,9 @@
     // else if(argv[1]=="status"){
 
     // }
-    printf("hello\n");
+    else
+        perror ("invalid command\n");
+    printf("\n");
     for(int i=0;i<argc;i++)
     printf("%s\n",argv[i]);
     return 0;
