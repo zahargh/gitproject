@@ -9,6 +9,8 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <string.h>
+#include<limits.h>
 char* make_address(char*,char*);
 int find_repo(char*);
 void init(char ** );
@@ -19,5 +21,7 @@ void alias(char*,char*);
 int is_valid(char*);
 char** is_alias(char*);
 void alias_global(char*,char*);
+void copy_file(char* ,char*);
+void add_to_staging(char*);
 
 #endif
