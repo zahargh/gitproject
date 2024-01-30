@@ -55,21 +55,40 @@ int main(int argc,char * argv[]){
         init(argv);
     }
     /////////////////////////////////////////////////////
-    else if(!strcmp(argv[1],"add")){  
+    else if(!strcmp(argv[1],"add")){ 
         if(!strcmp(argv[2],"-f")){
             for(int i=3;i<argc;i++){
-                add_to_staging(argv[i]);
+                char str[60];
+                strcpy(str,argv[i]);
+                if(strstr(str,"*")){
+                    char* result=wild_card(argv[i]);
+                    memset(argv[i],'\0',strlen(argv[i]));
+                    strcpy(argv[i],result);
+                }
+                add_to_staging_type(argv[i]);
             }
         }
         else if(!strcmp(argv[2],"-n")){
-            int depth=argv[3];
+            int depth;
+            if(argc>3) 
+                depth=(argv[3]-'0');
+            else
+                depth=1;
             //show dir and file heres with state of them staging or not 
+            show_file_staged(depth);     
         }
         else if(!strcmp(argv[2],"-redo")){
-            //search for files and add to staging
+            add_redo();
         }
         else{
-            add_to_staging(argv[2]);
+            char str[50];
+            strcpy(str,argv[2]);
+            if(strstr(str,"*")){
+                char* result=wild_card(argv[2]);
+                memset(argv[2],'\0',strlen(argv[2]));
+                strcpy(argv[2],result);
+            }
+            add_to_staging_type(argv[2]);
         }
     }
     // else if(argv[1]=="reset"){

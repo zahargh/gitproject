@@ -46,7 +46,7 @@
 #define _SGR_WHITEB     "\e[47m"
 #define _SGR_DEF_FG     "\e[39m"
 #define _SGR_DEF_BG     "\e[49m"
-
+#define ANSI_COLOR_RESET   "\x1b[0m"
 #define _SAVE_CURSOR    "\e[s"
 #define _REST_CURSOR    "\e[u"
 

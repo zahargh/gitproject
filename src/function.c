@@ -37,7 +37,24 @@ int find_repo(char* cwd){
         return 1;
     }
 }
-///////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+///0 is file 1 is dir
+int is_dir(char* path){
+
+    struct stat fileStat;
+    if (stat(path, &fileStat) == 0) {
+        if (S_ISDIR(fileStat.st_mode)) {
+         return 1; //is directory
+        } else {
+            return 0; //is file
+        }
+    } else {
+        perror("Error getting file/directory information");
+    }
+
+    return 0;
+}
+////////////////////////////////////////////////////////
 int find_repo_con_gol(char* cwd,char* name,char* email){
     getcwd(cwd,sizeof(cwd));
     char tmp_cwd[1024];
@@ -402,6 +419,63 @@ void copy_file(char* dest, char* src) {
     fclose(dest_file);
 }
 /////////////////////////////////
+int is_wild(char wildcard[],char test[]){
+     int it = 0, flag = 0;
+        for (int i = 0; i < strlen(test)-1; i++)
+        {
+            if((wildcard[it]!='*'&&test[i]!=wildcard[it])&&(i==0&&it==0)){
+                break;
+            }
+            if((wildcard[it]!='*'&&test[i]==wildcard[it])&&(i==0&&it==0)){
+                it++;
+                i++;
+            }
+         
+            if (wildcard[it] == '*')
+            {   while(wildcard[it]=='*')
+                it++;
+               // continue;
+            }
+            if (test[i] == wildcard[it]) 
+                it++;
+            if(it == strlen(wildcard)-1) {
+                flag = 1;
+                    break;
+            }
+            
+        }
+       return flag;
+
+}
+char* wild_card(char* path) {
+   
+    char tmp[100];
+    strcpy(tmp, path);
+    char* token = strtok(tmp, "/");
+    char file_name[50];
+    char p[70];
+    while (token) {
+        memset(file_name, '\0', sizeof(file_name));
+        strcpy(file_name, token);
+        token = strtok(NULL, "/");
+    }
+    for (int i = 0; i < strlen(path) - strlen(file_name); i++) {
+        p[i] = path[i];
+    }
+    p[strlen(path) - strlen(file_name)] = '\0';
+    struct dirent* entry;
+    DIR* dir = opendir(p);
+    while ((entry = readdir(dir)) != NULL) {
+        if (is_wild(file_name, entry->d_name)) {
+            closedir(dir);
+            strcat(p, entry->d_name);
+            return strdup(p);
+        }
+    }
+    closedir(dir);
+    return NULL;
+}
+/////////////////////////////////
 // void convertPath(char *path) {
 //     while (*path) {
 //         if (*path == '\\') {
@@ -411,8 +485,8 @@ void copy_file(char* dest, char* src) {
 //     }
 // }
 /////////////////////////////////////
-void add_to_staging(char*file_name){
-     char cwd[1024];
+void add_to_staging_file(char*file_name){
+    char cwd[1024];
     getcwd(cwd,sizeof(cwd));
     char tmp_cwd[1024];
     struct  dirent * entry;
@@ -425,37 +499,56 @@ void add_to_staging(char*file_name){
                 if(access("staging",F_OK)){
                      mkdir("staging",0755);
                 }
+                char file_c[100];
+                strcpy(file_c,file_name);
+                char* token=strtok(file_c,"/");
+                char name[40];
+                while(token){
+                    memset(name,'\0',strlen(name));
+                    strcpy(name,token);
+                    token=strtok(NULL,"/");
+                }
+                if(access("tracked",F_OK)){
+                    mkdir("tracked",0755);
+                }
+                chdir("tracked");
+                char t[1024];
+                getcwd(t,sizeof(t));
+                char name_tracked[1025];
+                strcpy(name_tracked,t);
+                strcat(name_tracked,"/");
+                strcat(name_tracked,name);
+                if(access(name_tracked,F_OK)){
+                    FILE * fi=fopen(name_tracked,"w");
+                    fprintf(fi,"address:%s\n",file_name);
+                    fclose(fi);
+                }
+                chdir("..");
                 chdir("staging"); 
                 char detail[100];
                 char tmp[1024];
                 getcwd(tmp,sizeof(tmp));
-                ///getting name of file from adrs
-                    char file_c[100];
-                    strcpy(file_c,file_name);
-                    char* token=strtok(file_c,"/");
-                    char name[40];
-                    while(token){
-                        memset(name,'\0',strlen(name));
-                        strcpy(name,token);
-                        token=strtok(NULL,"/");
-                    }
+                ///getting name of file from adrs                
                 strcpy(detail,tmp);
                 strcat(detail,"/");
                 strcat(detail,name);
-                strcat(detail,"address.txt");      
-                FILE* f=fopen(detail,"w");
-                fprintf(f,"address:%s\n",file_name);
-                fclose(f);
-        
+                strcat(detail,"address.txt"); 
                 getcwd(tmp,sizeof(tmp));
                 strcat(tmp,"/");
                 strcat(tmp,name);
-                //if file exist delete it first;
+                //if file exists delete it first then copy new file
+                if(access(detail,F_OK)==0){
+                        remove(tmp);
+                }     
+                FILE* f=fopen(detail,"w");
+                fprintf(f,"address:%s\n",file_name);
+                fclose(f);
                 copy_file(tmp,file_name);
                 exists = 1;
                 closedir(dir);
                 chdir(cwd);
                 return;
+                
             }
         }
         closedir(dir);
@@ -470,80 +563,211 @@ void add_to_staging(char*file_name){
     if(!exists)perror("there ain't a repo yet\n");
     return;
 }
+/////////////////////////////////
+void add_to_staging_type(char* adrs){
+    if(is_dir(adrs)){
+        DIR *dir = opendir(adrs);
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                char buffer[300];
+                snprintf(buffer, sizeof(buffer), "%s/%s", adrs, entry->d_name);
+                adrs[strlen(buffer)-1]='\0';
+                if (is_dir(buffer)) {
+                    add_to_staging_type(buffer);
+                } else {
+                    add_to_staging_file(buffer);
+                }
+            }
+        }
+        closedir(dir);
+    }
+    else
+        add_to_staging_file(adrs);
+     return;   
+}
+//////////////////////////////////////////////
+///0 file are different,1 similar
+int compareFiles(char* name1, char* name2) {
+    int ch1, ch2;
+    FILE* file1=fopen(name1,"rb");
+    FILE* file2=fopen(name2,"rb");
+    while ((ch1 = fgetc(file1)) != EOF && (ch2 = fgetc(file2)) != EOF) {
+        if (ch1 != ch2) {
+            return 0; 
+        }
+    }
+    if (ch1 != ch2) {
+        return 0; 
+    }
+    return 1; 
+}   
+/////////////////////////////////////////
+void add_redo(){
+    char cwd[1024];
+    bool init=false;
+    getcwd(cwd,sizeof(cwd));
+    char tmp_cwd[1024];
+    struct  dirent * entry;  
+    do{
+        DIR* dir=opendir(".");
+        while ((entry = readdir(dir)) != NULL) {
+            if (/*is_dir(entry->d_name)&&*/ strcmp(entry->d_name,".neogit") == 0){  
+                init=true;   
+                chdir(".neogit");
+                if(access("staging",F_OK)){
+                    perror("you havn't staged any thing yet\n");
+                    chdir(cwd);
+                    return;
+                }
+                else{  
+                    chdir("staging");
+                    struct dirent* files;
+                    DIR* stage=opendir(".");
+                    while( (files = readdir(stage)) !=NULL){
+                        char chert[100];
+                        strcpy(chert,files->d_name);
+                        if(strstr(chert,"address.txt")==NULL&&strcmp(files->d_name,".")&&strcmp(files->d_name,"..")){
+                            char file_name[70];
+                            char cwd_t[1024];
+                            getcwd(cwd_t,sizeof(cwd_t));
+                            strcpy(file_name,cwd_t);
+                            strcat(file_name,"/");
+                            strcat(file_name,files->d_name);
+                                char name[120];
+                                strcpy(name,file_name);
+                                strcat(name,"address.txt"); 
+                                FILE* f=fopen(name,"r");
+                                char line[100];
+                                fgets(line,sizeof(line),f);
+                                if( strlen(line)>0 && line[strlen(line)-1]=='\n' ) line[strlen(line)-1]='\0';
+                                char* token=strtok(line,":");
+                                token=strtok(NULL,":");
+                                if(!compareFiles(token,file_name)){
+                                    remove(file_name);
+                                    copy_file(file_name,token);
+                                }
+                            }
+                            //for each file that doesn't have address in it open it's address file and compare file with addressfile 
+                            //if change delete file then copy new one
+                        }
+                        //chdir cwd and return and clode two dir
+                        closedir(stage);
+                }
+            }
+        }
+        closedir(dir);
+        if(init) break;
+        getcwd(tmp_cwd,sizeof(tmp_cwd));
+        if(strcmp(tmp_cwd,"/")==0){
+            break;
+        }
+        chdir("..");
+    }while(strcmp(tmp_cwd,"/")!=0);
+    chdir(cwd);
+    if(!init){
+        perror("you don't have a repo\n");
+    }
+    return;
+}
+//////////////////////////////////////////
+//1 is staging 2 isn't 0 init
+int find_file_in_stage(char cwd[],char file_name[]){
+    // char adrs[1024];
+    // strcpy(adrs,cwd);
+    // strcat(adrs,"/");
+    // strcat(adrs,file_name);
+    ////if we want to check several files with one name then check the address in fileaddress.txt
+    // getcwd(cwd,sizeof(cwd));
+    char tmp_cwd[1024];
+    struct  dirent * entry;
+    int exists=0;    
+    do{
+        DIR* dir=opendir(".");
+        while ((entry = readdir(dir)) != NULL) {
+            if (/*!strcmp(entry->d_type ,"DT_DIR") && */strcmp(entry->d_name,".neogit") == 0){     
+                exists = 1;
+                chdir(".neogit");
+                if(access("staging",F_OK)){
+                    return 2;
+                }
+                else{
+                    struct dirent* file;
+                    chdir("staging");
+                    DIR* stage=opendir(".");
+                    while((file=readdir(stage))!=NULL){
+                        if(strcmp(file_name,file->d_name)==0){
+                            closedir(stage);
+                            return 1;
+                        }
+                    }
+                }
 
-
-
-//     char cwd[1024];
-//     getcwd(cwd,sizeof(cwd));
-//     char tmp_cwd[1024];memset(tmp_cwd,'\0',sizeof(tmp_cwd));
-//     char neo_adrs[1024]="";
-//     char file_adrs[1024]="";
-//     struct  dirent * entry;
-//     int exists=0;  
-//     do{
-//         DIR* dir=opendir(".");
-//         while ((entry = readdir(dir)) != NULL) {
-//             if (/*!strcmp(entry->d_type ,"DT_DIR") && */strcmp(entry->d_name,".neogit") == 0){     
-//                 getcwd(neo_adrs,sizeof(neo_adrs));
-//                 exists=1;
-//             }
-//         }
-//         closedir(dir);
-//         if(exists)break; 
-//         getcwd(tmp_cwd,sizeof(tmp_cwd));
-//         if(strcmp(tmp_cwd,"/")==0){
-//             break;
-//         }
-//         chdir("..");
+            }
+        }
+        closedir(dir);
+        if(exists)break; 
+        getcwd(tmp_cwd,sizeof(tmp_cwd));
+        if(strcmp(tmp_cwd,"/")==0){
+            break;
+        }
+        chdir("..");
  
-//     }while(strcmp(tmp_cwd,"/")!=0);
-//     char* tmp=searchFile(file_name);
-//     for(int i=0;i<strlen(tmp);i++){
-//         tmp[i]=tmp[1+i];
-//     }
-//     realpath(tmp,file_adrs);
+    }while(strcmp(tmp_cwd,"/")!=0);
+    chdir(cwd) ;
+    if(!exists){
+        return 0;
+    }
+    if(exists){
+        return 2;
+    }
+}
+///////////////////////////////////////
+void show_file_staged(int depth){
+    char cwd[1024];
+    char cwd_tmp[1024];
+    getcwd(cwd,sizeof(cwd));
+    if(depth<=0) return;
+    
+        DIR* dir=opendir(".");
+        if(dir==NULL) return;
+        getcwd(cwd_tmp,sizeof(cwd_tmp));
+        struct dirent* files;
+        while((files=readdir(dir))!=NULL){
+             if (strcmp(files->d_name, ".") == 0 || strcmp(files->d_name, "..") == 0||strcmp(files->d_name,".neogit")==0) {
+                 continue;  
+            }
+            char path[130];
+            strcpy(path,cwd_tmp);
+            strcat(path,"/");
+            strcat(path,files->d_name);
+            if(is_dir(path)){
+                chdir(path);
+               show_file_staged(depth-1);
+               chdir("..");
+            }
+            else{
+                char dir_n[50];
+                char *lastSlash = strrchr(cwd_tmp, '/');
+                if (lastSlash == NULL) 
+                    strcpy(dir_n,cwd_tmp);
+                else
+                    strcpy(dir_n, lastSlash + 1);
+                if(find_file_in_stage(cwd_tmp,files->d_name)==1)
+                    printf("file:%s in directory:%s is in stage erae\n",files->d_name,dir_n);
+                else if(find_file_in_stage(cwd_tmp,files->d_name)==2)
+                    printf("file: %s in directory: %s isn't in stage erea\n",files->d_name,dir_n);
+                else
+                    printf("the repo doesn't exist\n");
+                    chdir("..");
+            }
+        } 
 
-//     if(!exists){
-//         chdir(cwd);
-//         perror("you don't have a repo yet!\n");
-//         return ;
-//     }
-//     if(!searchFile(file_name)){
-//         chdir(cwd);
-//         perror("file doesn't exist\n");
-//         return ;
-//     }
-// //     //convertPath(neo_adrs);
-// //     chdir(neo_adrs);
-//     chdir(".neogit");  
-//     char folder[20][40];
-//     char* path=subtractstrings(file_adrs,neo_adrs);
-//     char* token=strtok(path,"\\");
-//     if(!path){
-//         copy_file("staging",file_adrs,file);
-//     }
-//     int ind=0;
-//     while(token){
-//         strcpy(folder[ind],token);
-//         ind++;
-//         token=strtok(NULL,"\\");
-//     }
-//     int u=0;
-//     while(u<ind){
-//         if(access(folder[u],F_OK))
-//             mkdir(folder[u],0755);
-//         chdir(folder[u]);
-//         u++;
-//     }
-//     char adrs[1024];
-//     getcwd(adrs,sizeof(adrs));
-//     convertPath(adrs);
-//     convertPath(file_adrs);
-//     copy_file(adrs,file_adrs,file);
-    // chdir(cwd) ;
-    // return ;   
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
+        chdir(cwd);
+        closedir(dir);
+    return;      
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 char** is_alias(char* filename){
     char* output[30];
     strcat(filename,".txt");

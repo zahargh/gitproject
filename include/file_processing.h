@@ -22,6 +22,14 @@ int is_valid(char*);
 char** is_alias(char*);
 void alias_global(char*,char*);
 void copy_file(char* ,char*);
-void add_to_staging(char*);
+void add_to_staging_file(char*);
+void add_redo();
+int is_dir(char*);
+void add_to_staging_type(char*);
+char* wild_card(char* );
+int is_wild(char *,char *);
+void show_file_staged(int);
+int find_file_in_stage(char*, char*);
+int compareFiles(char* , char* ); 
 
 #endif
